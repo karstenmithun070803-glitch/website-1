@@ -39,3 +39,21 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# karst — large reference video (kept locally, never committed)
+*.mov
+Actual\ website\ reference.mov
+
+# karst — local video pipeline (raw sources + encoded outputs stay out of git)
+/public/assets/video/raw/
+/public/assets/video/*.mp4
+/public/assets/video/*.webm
+/public/assets/img/
+!/public/assets/img/.gitkeep
+!/public/assets/video/.gitkeep
+
+# playwright
+/test-results
+/playwright-report
+/playwright/.cache
+/tests/**/*-snapshots

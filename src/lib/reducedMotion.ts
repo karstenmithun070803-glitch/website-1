@@ -1,0 +1,22 @@
+"use client";
+
+import { useEffect, useState } from "react";
+
+/**
+ * Reactive hook — returns `true` if the user has `prefers-reduced-motion: reduce` set.
+ * Updates live if the OS setting changes.
+ * SSR-safe: initial render is `false` (motion-friendly) until hydration.
+ */
+export function useReducedMotion(): boolean {
+  const [reduced, setReduced] = useState(false);
+
+  useEffect(() => {
+    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setReduced(query.matches);
+    const handler = (e: MediaQueryListEvent) => setReduced(e.matches);
+    query.addEventListener("change", handler);
+    return () => query.removeEventListener("change", handler);
+  }, []);
+
+  return reduced;
+}
