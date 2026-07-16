@@ -1,9 +1,7 @@
 import type { StubHomePage } from "@/lib/stubContent";
 import { Header } from "@/components/chrome/Header";
 import { IntroModal } from "./IntroModal";
-import { Hero } from "./Hero";
-import { Manifesto } from "./Manifesto";
-import { Transition } from "./Transition";
+import { HeroSequence } from "./HeroSequence";
 
 /**
  * HomePage — composes all 11 sections + persistent chrome.
@@ -17,18 +15,7 @@ export function HomePage({ content }: { content: StubHomePage }) {
       <Header />
 
       <main>
-        <Hero hero={content.hero} />
-        <Manifesto
-          manifesto={content.manifesto}
-          heroVideoPath={content.hero.heroVideoPath}
-          heroVideoPoster={content.hero.heroVideoPoster}
-        />
-        <Transition
-          headline={content.transitionHeadline}
-          subline={content.transitionSubline}
-          heroVideoPath={content.hero.heroVideoPath}
-          heroVideoPoster={content.hero.heroVideoPoster}
-        />
+        <HeroSequence content={content} />
 
         {/* Section placeholders — land in subsequent M2 tasks */}
         {content.phases.map((phase) => (
