@@ -5,22 +5,33 @@ import { gsap } from "@/lib/gsap";
 import { cn } from "@/lib/utils";
 import type { StubHomePage } from "@/lib/stubContent";
 
-export function IntroModal({ intro }: { intro: StubHomePage["intro"] }) {
-  const modalRef     = useRef<HTMLDivElement>(null);
-  const panelLeftRef  = useRef<HTMLDivElement>(null);
-  const panelRightRef = useRef<HTMLDivElement>(null);
-  const contentRef   = useRef<HTMLDivElement>(null);
-  const buttonRef    = useRef<HTMLButtonElement>(null);
-  const [exiting, setExiting]   = useState(false);
+type Props = {
+  intro: StubHomePage["intro"];
+  heroVideoPath: string;
+  heroVideoPoster?: string;
+};
+
+// Arch clip-path: a tall arched opening in screen-center, like a doorway.
+// "round 500px 500px 0px 0px" → top corners semicircle, bottom corners sharp.
+// Browser caps radius at half the shorter dimension, giving a perfect arch.
+const ARCH = "inset(16% 36% 12% 36% round 500px 500px 0px 0px)";
+const FULL = "inset(0% 0% 0% 0% round 0px 0px 0px 0px)";
+
+export function IntroModal({ intro, heroVideoPath, heroVideoPoster }: Props) {
+  const modalRef   = useRef<HTMLDivElement>(null);
+  const videoRef   = useRef<HTMLVideoElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const buttonRef  = useRef<HTMLButtonElement>(null);
+  const [exiting, setExiting]     = useState(false);
   const [dismissed, setDismissed] = useState(false);
 
   const handleEnter = () => {
     if (exiting) return;
-    const panelL  = panelLeftRef.current;
-    const panelR  = panelRightRef.current;
+    const modal   = modalRef.current;
+    const video   = videoRef.current;
     const content = contentRef.current;
     const button  = buttonRef.current;
-    if (!panelL || !panelR || !content || !button) return;
+    if (!modal || !video || !content || !button) return;
     setExiting(true);
 
     const prefersReduced =
@@ -28,39 +39,35 @@ export function IntroModal({ intro }: { intro: StubHomePage["intro"] }) {
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     if (prefersReduced) {
-      gsap.to(modalRef.current, {
-        opacity: 0,
-        duration: 0.2,
-        onComplete: () => setDismissed(true),
-      });
+      gsap.to(modal, { opacity: 0, duration: 0.3, onComplete: () => setDismissed(true) });
       return;
     }
 
     const tl = gsap.timeline({ onComplete: () => setDismissed(true) });
 
-    // 1. Button settles — barely perceptible, just enough tactile feedback
-    tl.to(button, { scale: 0.96, duration: 0.1, ease: "power2.out" })
-      .to(button, { scale: 1,    duration: 0.14, ease: "power2.out" });
+    // 1. Minimal button press — barely there, just confirms the tap
+    tl.to(button, { scale: 0.96, duration: 0.08, ease: "power2.out" })
+      .to(button, { scale: 1,    duration: 0.12, ease: "power2.out" });
 
-    // 2. Content dissolves — unhurried, before the panels move
-    tl.to(
-      content,
-      { opacity: 0, y: -12, duration: 0.5, ease: "power2.inOut" },
-      "+=0.06",
-    );
+    // 2. Wordmark + tagline dissolve — room goes quiet (500ms)
+    tl.to(content, { opacity: 0, y: -10, duration: 0.5, ease: "power2.inOut" }, "+=0.04");
 
-    // 3. Panels part like heavy interior doors — left leads by one beat
-    //    Long ease-in gives the impression of overcoming inertia (weight)
-    //    then they clear completely in one confident sweep.
+    // 3. Dark surround begins fading as the arch starts to breathe open
+    tl.to(modal, { backgroundColor: "rgba(0,0,0,0)", duration: 0.9, ease: "power2.inOut" }, "-=0.25");
+
+    // 4. The arch expands — clip-path opens from doorway to full viewport.
+    //    Scale pulls back from 1.06→1 so the scene recedes as it opens,
+    //    giving a sense of physical depth (you're stepping back as the
+    //    room reveals itself, not zooming in).
     tl.to(
-      panelL,
-      { xPercent: -100, duration: 2.0, ease: "power3.inOut" },
-      "-=0.18",
-    );
-    tl.to(
-      panelR,
-      { xPercent: 100, duration: 2.0, ease: "power3.inOut" },
-      "<0.07",   // right door follows left by 70 ms — slight human asymmetry
+      video,
+      {
+        clipPath: FULL,
+        scale: 1,
+        duration: 1.35,
+        ease: "power3.inOut",
+      },
+      "<0.05",
     );
   };
 
@@ -70,21 +77,31 @@ export function IntroModal({ intro }: { intro: StubHomePage["intro"] }) {
     <div
       ref={modalRef}
       aria-hidden={exiting}
-      className="fixed inset-0 z-[100] overflow-hidden"
+      className="fixed inset-0 z-[100] overflow-hidden bg-modal-bg"
     >
-      {/* Left door panel */}
-      <div
-        ref={panelLeftRef}
-        className="absolute left-0 top-0 h-full w-1/2 bg-modal-bg will-change-transform"
+      {/*
+       * Hero video — always present, clipped to arch shape.
+       * You see the hallway through the arch before pressing Enter.
+       * On Enter the clip-path expands to fill the viewport.
+       * Initial scale 1.06 → animates to 1 during expansion (depth sense).
+       */}
+      <video
+        ref={videoRef}
+        src={heroVideoPath}
+        poster={heroVideoPoster}
+        muted
+        playsInline
+        preload="auto"
+        aria-hidden
+        className="absolute inset-0 h-full w-full object-cover"
+        style={{
+          clipPath: ARCH,
+          transform: "scale(1.06)",
+          willChange: "clip-path, transform",
+        }}
       />
 
-      {/* Right door panel */}
-      <div
-        ref={panelRightRef}
-        className="absolute right-0 top-0 h-full w-1/2 bg-modal-bg will-change-transform"
-      />
-
-      {/* Content — above both panels, fades out first */}
+      {/* Wordmark, tagline, Enter button — float above the arch */}
       <div
         ref={contentRef}
         className="relative z-10 flex h-full flex-col text-page"

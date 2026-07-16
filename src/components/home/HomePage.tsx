@@ -11,7 +11,11 @@ import { HeroSequence } from "./HeroSequence";
 export function HomePage({ content }: { content: StubHomePage }) {
   return (
     <>
-      <IntroModal intro={content.intro} />
+      <IntroModal
+        intro={content.intro}
+        heroVideoPath={content.hero.heroVideoPath}
+        heroVideoPoster={content.hero.heroVideoPoster}
+      />
       <Header />
 
       <main>
