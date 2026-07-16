@@ -122,7 +122,7 @@ export function HeroSequence({ content }: { content: StubHomePage }) {
           0.3,
         );
 
-        // Manifesto exits
+        // Manifesto exits — completes at p=0.66 (0.60 + 0.06 duration + stagger tail)
         tl.to(
           manifestoWords,
           {
@@ -133,12 +133,13 @@ export function HeroSequence({ content }: { content: StubHomePage }) {
             stagger: 0.004,
             ease: "power2.in",
           },
-          0.62,
+          0.60,
         );
-        tl.set(manifestoAct, { autoAlpha: 0 }, 0.7);
+        // Hide manifesto container fully once words are out (avoid ghost overlap)
+        tl.set(manifestoAct, { autoAlpha: 0 }, 0.67);
 
-        // Transition: appears + reveals
-        tl.set(transitionAct, { autoAlpha: 1 }, 0.66);
+        // Beat — video alone for ~1% of scroll, then Transition arrives
+        tl.set(transitionAct, { autoAlpha: 1 }, 0.68);
         tl.to(
           transitionWords,
           {
@@ -149,7 +150,7 @@ export function HeroSequence({ content }: { content: StubHomePage }) {
             stagger: 0.02,
             ease: "power2.out",
           },
-          0.66,
+          0.68,
         );
       }, outerRef);
 
