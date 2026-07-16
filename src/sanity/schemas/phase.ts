@@ -47,10 +47,27 @@ export const phase = defineType({
     }),
     defineField({
       name: "subScenes",
-      title: "Sub-scenes",
-      description: "Ordered list of camera positions the scroll advances through.",
+      title: "Sub-scenes (diorama phases only)",
+      description: "Ordered camera positions the scroll advances through. Use for Listen / Refine / Live.",
       type: "array",
       of: [{ type: "subScene" }],
+    }),
+    defineField({
+      name: "cards",
+      title: "Cards (Build phase only)",
+      description: "5 vertical cards for the horizontal carousel. Only used for the Build phase.",
+      type: "array",
+      of: [
+        {
+          type: "object",
+          fields: [
+            defineField({ name: "number", type: "string", description: 'e.g. "01"' }),
+            defineField({ name: "heading", type: "string" }),
+            defineField({ name: "body", type: "text", rows: 3 }),
+          ],
+          preview: { select: { title: "heading", subtitle: "body" } },
+        },
+      ],
     }),
     defineField({
       name: "endOfPhaseCard",
