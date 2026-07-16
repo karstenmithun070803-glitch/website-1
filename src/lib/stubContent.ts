@@ -82,8 +82,11 @@ export type StubHomePage = {
   };
 };
 
-// URL-encode helpers — user-supplied filenames contain spaces
+// URL-encode helpers — user-supplied filenames contain spaces.
+// `SCRUB_VIDEO` is the encoded (short-GOP) variant used by pinned scroll-
+// scrubbed sections; the raw version is kept for reference.
 const VIDEO = (n: number) => `/assets/video/raw/${encodeURIComponent(`Video ${n}.mp4`)}`;
+const SCRUB_VIDEO = (n: number) => `/assets/video/Video-${n}-scrub.mp4`;
 const IMG = (id: string) => `/assets/img/${encodeURIComponent(`IMG ${id}.png`)}`;
 
 export const stubHomePage: StubHomePage = {
@@ -97,7 +100,8 @@ export const stubHomePage: StubHomePage = {
     headline: "ROOMS THAT HOLD THE DAY.",
     subline:
       "We design homes for the people who actually live in them — thoughtfully, materially, and with no visible seams.",
-    heroVideoPath: VIDEO(1),
+    // scrub-encoded variant for smooth scroll scrubbing
+    heroVideoPath: SCRUB_VIDEO(1),
     heroVideoPoster: IMG("D1"),
   },
   manifesto: [

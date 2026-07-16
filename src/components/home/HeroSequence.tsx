@@ -5,32 +5,24 @@ import { gsap, ScrollTrigger } from "@/lib/gsap";
 import type { StubHomePage } from "@/lib/stubContent";
 
 /**
- * HeroSequence — the pinned scroll-scrubbed hero experience.
+ * HeroSequence — pinned, scroll-scrubbed hero experience.
  *
- * Architecture:
- *   • Video 1 is FULL-BLEED from the start, not a card. The user's scroll
- *     drives `video.currentTime` — the camera literally walks forward through
- *     the hallway as they scroll. Stops when they stop. Reverses if they
- *     scroll up. This is what "feeling like entering the arch" means.
+ * Video 1 plays only as the user scrolls (`video.currentTime = p × duration`).
+ * The camera literally walks forward through the hallway as they scroll.
+ * Uses the SCRUB-encoded variant (short GOP) for smooth seeking.
  *
- *   • Text acts overlay the moving video at specific scroll progress points.
- *     Each text line uses a mask-reveal (translate from under a `overflow: hidden`
- *     wrapper) — feels theatrical, not just a fade.
+ * Text acts overlay the moving video. Each word rises into place with a
+ * subtle y-translate + fade + blur — theatrical without being harsh. Words
+ * are staggered so lines "breathe in" rather than snap.
  *
- *   • Dim overlay is always present but varies opacity slightly per act so
- *     text stays readable while still letting the video breathe through.
- *
- * Scroll acts (across 500dvh outer container):
- *   0.00 – 0.05  Hero text mask-reveals from below
- *   0.05 – 0.30  DWELL — user reads hero, video walks forward slightly
- *   0.30 – 0.35  Hero text exits up + Manifesto mask-reveals
- *   0.35 – 0.65  DWELL — user reads manifesto, video continues walking
- *   0.65 – 0.70  Manifesto exits up + Transition mask-reveals
- *   0.70 – 1.00  DWELL — user reads transition, video reaches the window
- *
- * Video scrubbing: `video.currentTime = self.progress * video.duration`
- * driven by ScrollTrigger.onUpdate. Under reduced-motion, video shows its
- * poster still and text renders in place with no animation.
+ * Scroll acts (across 500dvh):
+ *   0.00 – 0.24  Act A · Hero copy visible; video walks forward slowly
+ *   0.24 – 0.32  Hero exits (word-stagger fade+lift); dim deepens
+ *   0.32 – 0.42  Act B · Manifesto reveals (word-stagger fade+rise+blur)
+ *   0.42 – 0.62  DWELL — reading time; video continues walking
+ *   0.62 – 0.70  Manifesto exits (word-stagger fade+lift)
+ *   0.68 – 0.80  Act C · Transition reveals (word-stagger fade+rise+blur)
+ *   0.80 – 1.00  DWELL — reading time; video reaches the arched window
  */
 export function HeroSequence({ content }: { content: StubHomePage }) {
   const outerRef = useRef<HTMLDivElement>(null);
@@ -57,25 +49,28 @@ export function HeroSequence({ content }: { content: StubHomePage }) {
 
     const setup = () => {
       const ctx = gsap.context(() => {
-        // Pause the video — scroll owns it now
         video.pause();
 
-        const heroInners = heroAct.querySelectorAll<HTMLElement>("[data-mask-inner]");
-        const manifestoInners = manifestoAct.querySelectorAll<HTMLElement>("[data-mask-inner]");
-        const transitionInners = transitionAct.querySelectorAll<HTMLElement>("[data-mask-inner]");
+        const heroWords = heroAct.querySelectorAll<HTMLElement>("[data-word]");
+        const manifestoWords = manifestoAct.querySelectorAll<HTMLElement>("[data-word]");
+        const transitionWords = transitionAct.querySelectorAll<HTMLElement>("[data-word]");
 
-        // Hero starts VISIBLE (welcome state at scroll 0). Others start below their masks.
-        gsap.set(heroInners, { yPercent: 0 });
-        gsap.set([...manifestoInners, ...transitionInners], { yPercent: 110 });
+        // Hero visible at rest (welcome state). Others fully hidden.
+        gsap.set(heroWords, { y: 0, opacity: 1, filter: "blur(0px)" });
+        gsap.set([...manifestoWords, ...transitionWords], {
+          y: 24,
+          opacity: 0,
+          filter: "blur(8px)",
+        });
         gsap.set([manifestoAct, transitionAct], { autoAlpha: 0 });
-        gsap.set(dim, { opacity: 0.3 });
+        gsap.set(dim, { opacity: 0.32 });
 
-        // Master ScrollTrigger — pins + drives the video
+        // Master ScrollTrigger — pins + drives video currentTime
         ScrollTrigger.create({
           trigger: outer,
           start: "top top",
           end: "bottom bottom",
-          scrub: 0.4,
+          scrub: 0.6,
           pin: stage,
           onUpdate: (self) => {
             if (video.duration && Number.isFinite(video.duration)) {
@@ -84,48 +79,91 @@ export function HeroSequence({ content }: { content: StubHomePage }) {
           },
         });
 
-        // Master timeline — text-act sequencing
+        // Text-act timeline (separate ScrollTrigger, higher scrub for
+        // softer motion on text without slowing the video seek)
         const tl = gsap.timeline({
           scrollTrigger: {
             trigger: outer,
             start: "top top",
             end: "bottom bottom",
-            scrub: 0.4,
+            scrub: 1,
           },
-          defaults: { ease: "power3.out" },
         });
 
-        // Hero exits upward as user starts scrolling into the hallway
-        tl.to(heroInners, { yPercent: -110, duration: 0.06, stagger: 0.01, ease: "power3.in" }, 0.24);
-        // Dim deepens slightly as we shift into manifesto reading state
-        tl.to(dim, { opacity: 0.5, duration: 0.06 }, 0.28);
+        // Hero exits — words lift out with slight stagger + fade + blur
+        tl.to(
+          heroWords,
+          {
+            y: -18,
+            opacity: 0,
+            filter: "blur(6px)",
+            duration: 0.08,
+            stagger: 0.006,
+            ease: "power2.in",
+          },
+          0.22,
+        );
 
-        // Manifesto appears + reveals
-        tl.set(manifestoAct, { autoAlpha: 1 }, 0.33);
-        tl.to(manifestoInners, { yPercent: 0, duration: 0.06, stagger: 0.02 }, 0.33);
+        // Dim deepens for manifesto reading
+        tl.to(dim, { opacity: 0.5, duration: 0.06, ease: "none" }, 0.24);
+
+        // Manifesto: appears + reveals word-by-word (breath, not snap)
+        tl.set(manifestoAct, { autoAlpha: 1 }, 0.3);
+        tl.to(
+          manifestoWords,
+          {
+            y: 0,
+            opacity: 1,
+            filter: "blur(0px)",
+            duration: 0.11,
+            stagger: 0.008,
+            ease: "power2.out",
+          },
+          0.3,
+        );
 
         // Manifesto exits
-        tl.to(manifestoInners, { yPercent: -110, duration: 0.04, stagger: 0.008, ease: "power3.in" }, 0.65);
+        tl.to(
+          manifestoWords,
+          {
+            y: -14,
+            opacity: 0,
+            filter: "blur(6px)",
+            duration: 0.06,
+            stagger: 0.004,
+            ease: "power2.in",
+          },
+          0.62,
+        );
         tl.set(manifestoAct, { autoAlpha: 0 }, 0.7);
 
-        // Transition appears + reveals
-        tl.set(transitionAct, { autoAlpha: 1 }, 0.68);
-        tl.to(transitionInners, { yPercent: 0, duration: 0.06, stagger: 0.02 }, 0.68);
+        // Transition: appears + reveals
+        tl.set(transitionAct, { autoAlpha: 1 }, 0.66);
+        tl.to(
+          transitionWords,
+          {
+            y: 0,
+            opacity: 1,
+            filter: "blur(0px)",
+            duration: 0.11,
+            stagger: 0.02,
+            ease: "power2.out",
+          },
+          0.66,
+        );
       }, outerRef);
 
       return ctx;
     };
 
-    // Wait for video metadata so duration is known
     let ctx: gsap.Context | undefined;
-    if (video.readyState >= 1 /* HAVE_METADATA */) {
+    if (video.readyState >= 1) {
       ctx = setup();
     } else {
       const onMeta = () => {
         ctx = setup();
       };
       video.addEventListener("loadedmetadata", onMeta, { once: true });
-      // Also fall back to trying setup after a short delay in case metadata never fires
       const fallback = window.setTimeout(() => {
         if (!ctx) ctx = setup();
       }, 2000);
@@ -141,9 +179,7 @@ export function HeroSequence({ content }: { content: StubHomePage }) {
 
   return (
     <div ref={outerRef} className="relative w-full" style={{ height: "500dvh" }}>
-      {/* Sticky stage — always full-bleed, video is the whole picture */}
       <div ref={stageRef} className="relative h-dvh w-full overflow-hidden bg-modal-bg">
-        {/* Scroll-scrubbed video — full stage */}
         <video
           ref={videoRef}
           src={content.hero.heroVideoPath}
@@ -152,83 +188,87 @@ export function HeroSequence({ content }: { content: StubHomePage }) {
           playsInline
           preload="auto"
           className="absolute inset-0 h-full w-full object-cover"
+          style={{ willChange: "contents", transform: "translateZ(0)" }}
           aria-label="A slow dolly through a residential hallway toward an arched window at golden hour."
         />
-        {/* Dim overlay — protects text legibility */}
         <div ref={dimRef} aria-hidden className="pointer-events-none absolute inset-0 bg-modal-bg" />
 
-        {/* ─── Act A · Hero text ─────────────────────────────── */}
+        {/* ─── Act A · Hero ────────────────────────────────── */}
         <div
           ref={heroActRef}
           className="pointer-events-none absolute inset-0 z-10 flex flex-col justify-center px-6 md:px-12 lg:px-16"
         >
           <div className="mx-auto grid w-full max-w-[1440px] grid-cols-1 items-end gap-10 md:grid-cols-[1.4fr_1fr] md:gap-16">
             <div>
-              <MaskLine className="mb-6 block font-mono text-[11px] uppercase tracking-[0.08em] text-page/70">
-                Scroll to explore
-              </MaskLine>
+              <p className="mb-6 font-mono text-[11px] uppercase tracking-[0.08em] text-page/70">
+                <Words text="Scroll to explore" />
+              </p>
               <h1 className="font-display leading-[0.95] text-page">
-                <MaskLine className="block text-[13vw] md:text-[9vw] lg:text-[9rem]">
-                  ROOMS THAT
-                </MaskLine>
-                <MaskLine className="block text-[13vw] md:text-[9vw] lg:text-[9rem]">
-                  HOLD THE DAY.
-                </MaskLine>
+                <span className="block text-[13vw] md:text-[9vw] lg:text-[9rem]">
+                  <Words text="ROOMS THAT" />
+                </span>
+                <span className="block text-[13vw] md:text-[9vw] lg:text-[9rem]">
+                  <Words text="HOLD THE DAY." />
+                </span>
               </h1>
             </div>
             <div className="pb-4 md:pb-10">
-              <MaskLine className="block max-w-md font-body text-base leading-relaxed text-page/85 md:text-lg">
-                {content.hero.subline}
-              </MaskLine>
+              <p className="max-w-md font-body text-base leading-relaxed text-page/85 md:text-lg">
+                <Words text={content.hero.subline} />
+              </p>
             </div>
           </div>
         </div>
 
-        {/* ─── Act B · Manifesto ─────────────────────────────── */}
+        {/* ─── Act B · Manifesto ───────────────────────────── */}
         <div
           ref={manifestoActRef}
           className="pointer-events-none absolute inset-0 z-10 flex items-center px-6 md:px-12 lg:px-16"
         >
           <div className="mx-auto grid w-full max-w-[1440px] grid-cols-1 gap-8 md:grid-cols-[200px_1fr] md:gap-16">
             <div>
-              <MaskLine className="block font-mono text-[11px] uppercase tracking-[0.08em] text-page/70">
-                How we work
-              </MaskLine>
-              <MaskLine className="mt-1 block font-mono text-[11px] uppercase tracking-[0.08em] text-page/70">
-                Our process
-              </MaskLine>
+              <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-page/70">
+                <Words text="How we work" />
+              </p>
+              <p className="mt-1 font-mono text-[11px] uppercase tracking-[0.08em] text-page/70">
+                <Words text="Our process" />
+              </p>
             </div>
             <div className="space-y-8 md:space-y-12 md:pr-16">
               {content.manifesto.map((para, i) => (
                 <p
                   key={i}
-                  className="max-w-3xl font-display text-[5.5vw] leading-[1.2] text-page md:text-[2.2rem] lg:text-[2.6rem]"
+                  className="max-w-3xl font-display text-[5.5vw] leading-[1.22] text-page md:text-[2.2rem] lg:text-[2.6rem]"
                 >
-                  <MaskLine className="block">
-                    {i === 0 && <span className="mr-2 text-copper">◆</span>}
-                    {para}
-                  </MaskLine>
+                  {i === 0 && <span className="mr-2 text-copper">◆</span>}
+                  <Words text={para} />
                 </p>
               ))}
             </div>
           </div>
         </div>
 
-        {/* ─── Act C · Transition ────────────────────────────── */}
+        {/* ─── Act C · Transition ──────────────────────────── */}
         <div
           ref={transitionActRef}
           className="pointer-events-none absolute inset-0 z-10 flex items-center px-6 md:px-12 lg:px-16"
         >
           <div className="mx-auto w-full max-w-[1440px]">
             <h2 className="font-display leading-[0.95] text-page">
-              <MaskLine className="block text-[15vw] md:text-[9vw] lg:text-[9.5rem]">BEGIN</MaskLine>
-              <MaskLine className="block text-[15vw] md:text-[9vw] lg:text-[9.5rem]">A HOME</MaskLine>
-              <MaskLine className="block text-[15vw] md:text-[9vw] lg:text-[9.5rem]">WITH US</MaskLine>
+              <span className="block text-[15vw] md:text-[9vw] lg:text-[9.5rem]">
+                <Words text="BEGIN" />
+              </span>
+              <span className="block text-[15vw] md:text-[9vw] lg:text-[9.5rem]">
+                <Words text="A HOME" />
+              </span>
+              <span className="block text-[15vw] md:text-[9vw] lg:text-[9.5rem]">
+                <Words text="WITH US" />
+              </span>
             </h2>
             <div className="mt-8">
-              <MaskLine className="block max-w-md font-body text-base text-page/70 md:text-lg">
-                {content.transitionSubline}
-              </MaskLine>
+              <p className="max-w-md font-body text-base text-page/70 md:text-lg">
+                <Words text={content.transitionSubline} />
+              </p>
             </div>
           </div>
         </div>
@@ -238,22 +278,27 @@ export function HeroSequence({ content }: { content: StubHomePage }) {
 }
 
 /**
- * Inline mask-reveal wrapper. Each line renders inside a `overflow: hidden`
- * span; the timeline in HeroSequence animates the inner span from
- * `translateY(110%)` → `0` for a curtain-rise effect.
+ * Splits `text` into per-word spans with `data-word` for GSAP to target.
+ * Preserves whitespace so wrapping behaves normally. Each word is
+ * `inline-block` so transforms don't break line-height / wrapping.
  */
-function MaskLine({
-  children,
-  className,
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
+function Words({ text }: { text: string }) {
+  const parts = text.split(/(\s+)/);
   return (
-    <span className={`overflow-hidden ${className ?? ""}`} style={{ display: "block" }}>
-      <span data-mask-inner style={{ display: "inline-block", willChange: "transform" }}>
-        {children}
-      </span>
-    </span>
+    <>
+      {parts.map((part, i) => {
+        if (/^\s+$/.test(part)) return <span key={i}>{part}</span>;
+        return (
+          <span
+            key={i}
+            data-word
+            className="inline-block"
+            style={{ willChange: "transform, opacity, filter" }}
+          >
+            {part}
+          </span>
+        );
+      })}
+    </>
   );
 }
