@@ -1,0 +1,257 @@
+/**
+ * Stub content — used when Sanity is not yet configured (no project ID).
+ * Mirrors the shape of what the HOME_PAGE_QUERY would return, populated
+ * from Deliverable 4 §5 (WHAT we build) so the site renders end-to-end
+ * even on a fresh clone with no env vars.
+ *
+ * Once Sanity is populated, this becomes fallback-only.
+ */
+
+export type StubHomePage = {
+  intro: {
+    tagline: string;
+    enterButtonLabel: string;
+    backgroundImagePath: string;
+    wordmarkImagePath: string;
+  };
+  hero: {
+    headline: string;
+    subline: string;
+    heroVideoPath: string;
+    heroVideoPoster: string;
+  };
+  manifesto: string[];
+  transitionHeadline: string;
+  transitionSubline: string;
+  phases: Array<{
+    number: number;
+    name: string;
+    introBody: string;
+    backgroundVideoPath?: string;
+    backgroundVideoPoster?: string;
+    subScenes: Array<{
+      stepLabel: string;
+      stepDescription: string;
+      hotspots: Array<{
+        label: string;
+        description: string;
+        cardImagePath?: string;
+      }>;
+    }>;
+  }>;
+  tour: {
+    introChip: string;
+    introHeadline: string;
+    introBody: string;
+    aerialImagePath: string;
+    rooms: Array<{
+      slug: string;
+      name: string;
+      thumbnailPath: string;
+      reveal: "video" | "kenBurnsStill";
+      revealVideoPath?: string;
+      revealImagePath?: string;
+      description: string;
+      aerialPosition: { xPct: number; yPct: number };
+    }>;
+  };
+  contactModal: {
+    heading: string;
+    subline: string;
+    confirmationMessage: string;
+    backgroundImagePath: string;
+  };
+};
+
+// Note: paths reference the user-provided asset names in /public/assets.
+// Actual filenames (from the drop): "Video 1.mp4"..."Video 7.mp4",
+// "IMG A1.png"..."IMG D3.png". URL-encode spaces at render time.
+const VIDEO = (n: number) => `/assets/video/raw/Video ${n}.mp4`;
+const IMG = (id: string) => `/assets/img/IMG ${id}.png`;
+
+export const stubHomePage: StubHomePage = {
+  intro: {
+    tagline: "Interior Design Studio",
+    enterButtonLabel: "Enter",
+    backgroundImagePath: IMG("D1"),
+    wordmarkImagePath: IMG("D2"),
+  },
+  hero: {
+    headline: "ROOMS THAT HOLD THE DAY.",
+    subline:
+      "We design homes for the people who actually live in them — thoughtfully, materially, and with no visible seams.",
+    heroVideoPath: VIDEO(1),
+    heroVideoPoster: IMG("D1"),
+  },
+  manifesto: [
+    "Every project begins with a room's own logic — how light enters, where people gather, which corners deserve the good chair. We start there, not with a mood board.",
+    "From that first honest brief through the last curated object, Karst designs residences and quiet commercial spaces that reward the time you spend in them.",
+  ],
+  transitionHeadline: "BEGIN A HOME WITH US",
+  transitionSubline: "Every home we design moves through five phases — each measured, each deliberate.",
+  phases: [
+    {
+      number: 1,
+      name: "Listen",
+      introBody:
+        "We spend the first weeks not designing anything at all. We walk the site at different hours, meet everyone who'll live there, and note the small things — where the light lands at four in the afternoon, which door already gets left open.",
+      backgroundVideoPath: VIDEO(2),
+      backgroundVideoPoster: IMG("B1"),
+      subScenes: [
+        {
+          stepLabel: "STEP 01",
+          stepDescription: "We read the plot before we draw on it.",
+          hotspots: [
+            {
+              label: "Orientation & Light",
+              description:
+                "North–south axis, how each room receives the sun through the year, where shade needs to be built.",
+              cardImagePath: IMG("B1"),
+            },
+            {
+              label: "Landscape & Terrain",
+              description:
+                "Existing trees to preserve, sight-lines to protect, the topography we design with instead of against.",
+              cardImagePath: IMG("B1"),
+            },
+            {
+              label: "Neighborhood Grain",
+              description:
+                "What the surrounding architecture already speaks. Our work continues a conversation — never interrupts one.",
+              cardImagePath: IMG("B1"),
+            },
+          ],
+        },
+        {
+          stepLabel: "STEP 02",
+          stepDescription:
+            "We translate lived detail into design intent — a working brief you can hold in your hand.",
+          hotspots: [
+            {
+              label: "The Client's Real Day",
+              description:
+                "How you actually spend a Sunday, where the kids drop their bags, which rooms will hold guests, which are only for you.",
+            },
+            {
+              label: "Objects You Already Love",
+              description:
+                "The paintings, the books, the chair from your grandmother — they usually tell us more about the room than a mood board can.",
+            },
+            {
+              label: "Rhythm of the House",
+              description:
+                "When does the house need to be loud, when quiet, when open, when closed. This shapes every plan we draw next.",
+            },
+          ],
+        },
+      ],
+    },
+    {
+      number: 2,
+      name: "Sketch",
+      introBody:
+        "We begin drawing by hand. Concepts before computers, in soft pencil on tracing paper, so nothing gets committed too early. Every idea we bring you at this stage has been argued for.",
+      subScenes: [],
+    },
+    {
+      number: 3,
+      name: "Refine",
+      introBody:
+        "Refinement is what protects the concept from erosion during construction. Every line on every drawing carries a decision behind it — and a reason we can defend.",
+      backgroundVideoPath: VIDEO(3),
+      backgroundVideoPoster: IMG("B2"),
+      subScenes: [],
+    },
+    {
+      number: 4,
+      name: "Build",
+      introBody:
+        "During construction, Karst remains on site weekly. We meet the trades, review every finish sample against the specification, and protect the project from the small drifts that would compromise it.",
+      subScenes: [],
+    },
+    {
+      number: 5,
+      name: "Live",
+      introBody:
+        "The last two weeks are the ones that separate a completed house from a home. Styling, objects, and the first quiet evening before the client moves in.",
+      backgroundVideoPath: VIDEO(4),
+      backgroundVideoPoster: IMG("B3"),
+      subScenes: [],
+    },
+  ],
+  tour: {
+    introChip: "TAKE A TOUR",
+    introHeadline: "STEP INSIDE A KARST HOME",
+    introBody:
+      "This is a home we completed for a family of four on the coast. Every room shown was styled, photographed, and lived in for six months before we returned to capture it.",
+    aerialImagePath: IMG("B3"),
+    rooms: [
+      {
+        slug: "living",
+        name: "Living Room",
+        thumbnailPath: IMG("C1"),
+        reveal: "video",
+        revealVideoPath: VIDEO(5),
+        description:
+          "Boucle sofa in oat, fluted stone table, a single Noguchi Akari, and an abstract painting we sourced specifically for this wall. The room the family gathers in every evening.",
+        aerialPosition: { xPct: 30, yPct: 55 },
+      },
+      {
+        slug: "kitchen",
+        name: "Kitchen & Dining",
+        thumbnailPath: IMG("C2"),
+        reveal: "video",
+        revealVideoPath: VIDEO(6),
+        description:
+          "The island is one book-matched slab of Calacatta Viola marble, 2.4m long, resting on hand-plastered black-brown volumes. Brass pendant lights we co-designed with a workshop in Antwerp.",
+        aerialPosition: { xPct: 50, yPct: 45 },
+      },
+      {
+        slug: "bedroom",
+        name: "Bedroom Suite",
+        thumbnailPath: IMG("C3"),
+        reveal: "video",
+        revealVideoPath: VIDEO(7),
+        description:
+          "A Belgian-modernist bedroom in limewashed white and pale oak. Every element chosen to soften first light — from the monk's-cloth curtain to the paper drum pendant.",
+        aerialPosition: { xPct: 70, yPct: 40 },
+      },
+      {
+        slug: "powder",
+        name: "Powder Room",
+        thumbnailPath: IMG("C4"),
+        reveal: "kenBurnsStill",
+        revealImagePath: IMG("C4"),
+        description:
+          "A jewel-box: one slab of book-matched green marble, an unlacquered brass tap, a ribbed-glass sconce, a candle always burning.",
+        aerialPosition: { xPct: 40, yPct: 65 },
+      },
+      {
+        slug: "terrace",
+        name: "Garden Terrace",
+        thumbnailPath: IMG("C5"),
+        reveal: "kenBurnsStill",
+        revealImagePath: IMG("C5"),
+        description:
+          "A raw travertine table, bentwood chairs, and a linen umbrella. The client eats here from May to October.",
+        aerialPosition: { xPct: 25, yPct: 75 },
+      },
+      {
+        slug: "cellar",
+        name: "Wine Cellar",
+        thumbnailPath: IMG("C6"),
+        reveal: "kenBurnsStill",
+        revealImagePath: IMG("C6"),
+        description:
+          "A quiet room below the kitchen: vaulted brick, brass sconces, two coupes on a marble tasting counter.",
+        aerialPosition: { xPct: 60, yPct: 70 },
+      },
+    ],
+  },
+  contactModal: {
+    heading: "Begin a conversation.",
+    subline: "Tell us about the space and the way you want to live in it. We read every note.",
+    confirmationMessage: "Thank you. We'll be in touch within two working days.",
+    backgroundImagePath: IMG("D3"),
+  },
+};
