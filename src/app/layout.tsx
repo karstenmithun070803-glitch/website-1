@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Instrument_Serif, Inter, Geist_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -25,10 +25,42 @@ const mono = Geist_Mono({
   display: "swap",
 });
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  themeColor: "#f1ede4",
+};
+
 export const metadata: Metadata = {
+  metadataBase: new URL("https://karst.vercel.app"),
   title: "Karst — Interior Design Studio",
   description:
     "We design homes for the people who actually live in them — thoughtfully, materially, and with no visible seams.",
+  openGraph: {
+    title: "Karst — Interior Design Studio",
+    description:
+      "We design homes for the people who actually live in them — thoughtfully, materially, and with no visible seams.",
+    url: "https://karst.vercel.app",
+    siteName: "Karst",
+    images: [
+      {
+        url: "/og/home.jpg",
+        width: 1200,
+        height: 630,
+        alt: "Karst interior — golden hour hallway",
+      },
+    ],
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Karst — Interior Design Studio",
+    description:
+      "We design homes for the people who actually live in them — thoughtfully, materially, and with no visible seams.",
+    images: ["/og/home.jpg"],
+  },
 };
 
 export default function RootLayout({

@@ -8,11 +8,13 @@ import { useEffect, useState } from "react";
  * SSR-safe: initial render is `false` (motion-friendly) until hydration.
  */
 export function useReducedMotion(): boolean {
-  const [reduced, setReduced] = useState(false);
+  const [reduced, setReduced] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  });
 
   useEffect(() => {
     const query = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setReduced(query.matches);
     const handler = (e: MediaQueryListEvent) => setReduced(e.matches);
     query.addEventListener("change", handler);
     return () => query.removeEventListener("change", handler);

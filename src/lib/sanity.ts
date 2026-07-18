@@ -24,7 +24,11 @@ export const sanityClient = isSanityConfigured
 /** GROQ for the home-page singleton. Extend as sections are wired up. */
 export const HOME_PAGE_QUERY = /* groq */ `*[_type == "homePage"][0]{
   intro,
-  hero,
+  hero{
+    headline, subline,
+    heroVideo{ asset->{ url } },
+    heroVideoPoster
+  },
   manifesto,
   transitionHeadline,
   transitionSubline,
@@ -36,6 +40,7 @@ export const HOME_PAGE_QUERY = /* groq */ `*[_type == "homePage"][0]{
       stepLabel, stepDescription,
       hotspots[]{ label, description, cardImage, position }
     },
+    cards[]{ number, heading, body },
     endOfPhaseCard
   },
   tour{

@@ -1,8 +1,9 @@
 "use client";
 
-import { useLayoutEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { gsap, ScrollTrigger } from "@/lib/gsap";
 import type { StubHomePage } from "@/lib/stubContent";
+import { track } from "@/lib/analytics";
 
 /**
  * HeroSequence — pinned, scroll-scrubbed hero experience.
@@ -32,6 +33,7 @@ export function HeroSequence({ content }: { content: StubHomePage }) {
   const heroActRef = useRef<HTMLDivElement>(null);
   const manifestoActRef = useRef<HTMLDivElement>(null);
   const transitionActRef = useRef<HTMLDivElement>(null);
+  const [heroRevealed, setHeroRevealed] = useState(false);
 
   useLayoutEffect(() => {
     if (typeof window === "undefined") return;
@@ -55,15 +57,36 @@ export function HeroSequence({ content }: { content: StubHomePage }) {
         const manifestoWords = manifestoAct.querySelectorAll<HTMLElement>("[data-word]");
         const transitionWords = transitionAct.querySelectorAll<HTMLElement>("[data-word]");
 
-        // Hero visible at rest (welcome state). Others fully hidden.
-        gsap.set(heroWords, { y: 0, opacity: 1, filter: "blur(0px)" });
-        gsap.set([...manifestoWords, ...transitionWords], {
+        // ALL text starts hidden — hero text materializes when the
+        // intro arch opens (karst:enter event). Manifesto + transition
+        // remain hidden until the scroll timeline reveals them.
+        gsap.set([...heroWords, ...manifestoWords, ...transitionWords], {
           y: 24,
           opacity: 0,
           filter: "blur(8px)",
         });
-        gsap.set([manifestoAct, transitionAct], { autoAlpha: 0 });
+        gsap.set([heroAct, manifestoAct, transitionAct], { autoAlpha: 0 });
         gsap.set(dim, { opacity: 0.32 });
+
+        // Reveal hero text when intro modal opens the arch
+        const revealHero = () => {
+          setHeroRevealed(true);
+          gsap.set(heroAct, { autoAlpha: 1 });
+          gsap.to(heroWords, {
+            y: 0,
+            opacity: 1,
+            filter: "blur(0px)",
+            duration: 0.9,
+            stagger: 0.012,
+            ease: "power2.out",
+          });
+        };
+        window.addEventListener("karst:enter", revealHero, { once: true });
+        // Fallback: reveal immediately if no IntroModal is present
+        const modalPresent = document.querySelector("[data-intro-modal]");
+        if (!modalPresent) {
+          revealHero();
+        }
 
         // Master ScrollTrigger — pins + drives video currentTime
         ScrollTrigger.create({
@@ -152,6 +175,22 @@ export function HeroSequence({ content }: { content: StubHomePage }) {
           },
           0.68,
         );
+
+        // Exit: transition text fades, dim deepens for handoff
+        tl.to(
+          transitionWords,
+          {
+            y: -14,
+            opacity: 0,
+            filter: "blur(6px)",
+            duration: 0.06,
+            stagger: 0.004,
+            ease: "power2.in",
+          },
+          0.84,
+        );
+        tl.set(transitionAct, { autoAlpha: 0 }, 0.92);
+        tl.to(dim, { opacity: 0.88, duration: 0.14, ease: "power2.in" }, 0.82);
       }, outerRef);
 
       return ctx;
@@ -175,7 +214,29 @@ export function HeroSequence({ content }: { content: StubHomePage }) {
       };
     }
 
-    return () => ctx?.revert();
+    return () => {
+      ctx?.revert();
+    };
+  }, []);
+
+  useEffect(() => {
+    const hero = heroActRef.current;
+    const manifesto = manifestoActRef.current;
+    if (!hero || !manifesto) return;
+    const ob = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (!e.isIntersecting) continue;
+          if (e.target === hero) track("home_hero_reached");
+          if (e.target === manifesto) track("manifesto_reached");
+          ob.unobserve(e.target);
+        }
+      },
+      { threshold: 0.1 },
+    );
+    ob.observe(hero);
+    ob.observe(manifesto);
+    return () => ob.disconnect();
   }, []);
 
   return (
@@ -197,7 +258,7 @@ export function HeroSequence({ content }: { content: StubHomePage }) {
         {/* ─── Act A · Hero ────────────────────────────────── */}
         <div
           ref={heroActRef}
-          className="pointer-events-none absolute inset-0 z-10 flex flex-col justify-center px-6 md:px-12 lg:px-16"
+          className={`pointer-events-none absolute inset-0 z-10 flex flex-col justify-center px-6 md:px-12 lg:px-16 ${heroRevealed ? "" : "invisible opacity-0"}`}
         >
           <div className="mx-auto grid w-full max-w-[1440px] grid-cols-1 items-end gap-10 md:grid-cols-[1.4fr_1fr] md:gap-16">
             <div>

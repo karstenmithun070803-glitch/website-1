@@ -1,37 +1,42 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { gsap } from "@/lib/gsap";
 import { cn } from "@/lib/utils";
 import type { StubHomePage } from "@/lib/stubContent";
 
-type Props = {
-  intro: StubHomePage["intro"];
-  heroVideoPath: string;
-  heroVideoPoster?: string;
-};
+type Arch = { l: number; r: number; t: number; b: number; cy: number };
 
-// Arch clip-path: a tall arched opening in screen-center, like a doorway.
-// "round 500px 500px 0px 0px" → top corners semicircle, bottom corners sharp.
-// Browser caps radius at half the shorter dimension, giving a perfect arch.
-const ARCH = "inset(16% 36% 12% 36% round 500px 500px 0px 0px)";
-const FULL = "inset(0% 0% 0% 0% round 0px 0px 0px 0px)";
+const CLOSED: Arch = { l: 38, r: 62, t: 8, b: 92, cy: 22 };
+const OPEN: Arch = { l: -20, r: 120, t: -20, b: 120, cy: -20 };
 
-export function IntroModal({ intro, heroVideoPath, heroVideoPoster }: Props) {
-  const modalRef   = useRef<HTMLDivElement>(null);
-  const videoRef   = useRef<HTMLVideoElement>(null);
+function archD({ l, r, t, b, cy }: Arch): string {
+  const cx = (l + r) / 2;
+  return [
+    `M${l},${b}`,
+    `L${l},${cy}`,
+    `Q${l},${t} ${cx},${t}`,
+    `Q${r},${t} ${r},${cy}`,
+    `L${r},${b}`,
+    "Z",
+  ].join(" ");
+}
+
+export function IntroModal({ intro }: { intro: StubHomePage["intro"] }) {
+  const svgRef = useRef<SVGSVGElement>(null);
+  const pathRef = useRef<SVGPathElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
-  const buttonRef  = useRef<HTMLButtonElement>(null);
-  const [exiting, setExiting]     = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [exiting, setExiting] = useState(false);
   const [dismissed, setDismissed] = useState(false);
 
-  const handleEnter = () => {
+  const handleEnter = useCallback(() => {
     if (exiting) return;
-    const modal   = modalRef.current;
-    const video   = videoRef.current;
+    const svg = svgRef.current;
+    const path = pathRef.current;
     const content = contentRef.current;
-    const button  = buttonRef.current;
-    if (!modal || !video || !content || !button) return;
+    const button = buttonRef.current;
+    if (!svg || !path || !content || !button) return;
     setExiting(true);
 
     const prefersReduced =
@@ -39,84 +44,120 @@ export function IntroModal({ intro, heroVideoPath, heroVideoPoster }: Props) {
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     if (prefersReduced) {
-      gsap.to(modal, { opacity: 0, duration: 0.3, onComplete: () => setDismissed(true) });
+      window.dispatchEvent(new CustomEvent("karst:enter"));
+      gsap.to(svg, { opacity: 0, duration: 0.3 });
+      gsap.to(content, {
+        opacity: 0,
+        duration: 0.3,
+        onComplete: () => setDismissed(true),
+      });
       return;
     }
 
+    const arch = { ...CLOSED };
     const tl = gsap.timeline({ onComplete: () => setDismissed(true) });
 
-    // 1. Minimal button press — barely there, just confirms the tap
-    tl.to(button, { scale: 0.96, duration: 0.08, ease: "power2.out" })
-      .to(button, { scale: 1,    duration: 0.12, ease: "power2.out" });
-
-    // 2. Wordmark + tagline dissolve — room goes quiet (500ms)
-    tl.to(content, { opacity: 0, y: -10, duration: 0.5, ease: "power2.inOut" }, "+=0.04");
-
-    // 3. Dark surround begins fading as the arch starts to breathe open
-    tl.to(modal, { backgroundColor: "rgba(0,0,0,0)", duration: 0.9, ease: "power2.inOut" }, "-=0.25");
-
-    // 4. The arch expands — clip-path opens from doorway to full viewport.
-    //    Scale pulls back from 1.06→1 so the scene recedes as it opens,
-    //    giving a sense of physical depth (you're stepping back as the
-    //    room reveals itself, not zooming in).
-    tl.to(
-      video,
-      {
-        clipPath: FULL,
-        scale: 1,
-        duration: 1.35,
-        ease: "power3.inOut",
-      },
-      "<0.05",
+    // 1. Button settles
+    tl.to(button, { scale: 0.96, duration: 0.08, ease: "power2.out" }).to(
+      button,
+      { scale: 1, duration: 0.12, ease: "power2.out" },
     );
-  };
+
+    // 2. Content dissolves
+    tl.to(
+      content,
+      { opacity: 0, y: -10, duration: 0.5, ease: "power2.inOut" },
+      "+=0.06",
+    );
+
+    // 3. Arch breathes open — reveals the actual hero underneath
+    tl.to(
+      arch,
+      {
+        ...OPEN,
+        duration: 1.6,
+        ease: "power3.inOut",
+        onUpdate: () => path.setAttribute("d", archD(arch)),
+      },
+      "-=0.28",
+    );
+
+    // 4. As arch opens wide, tell hero to materialize its text
+    tl.call(
+      () => window.dispatchEvent(new CustomEvent("karst:enter")),
+      [],
+      "-=0.9",
+    );
+
+    // 5. Overlay opacity fades to catch any residual mask edge
+    tl.to(svg, { opacity: 0, duration: 0.35, ease: "power2.out" }, "-=0.5");
+  }, [exiting]);
+
+  useEffect(() => {
+    buttonRef.current?.focus();
+  }, []);
 
   if (dismissed) return null;
 
   return (
     <div
-      ref={modalRef}
+      data-intro-modal
+      className={cn("fixed inset-0 z-[100]", exiting && "pointer-events-none")}
       aria-hidden={exiting}
-      className="fixed inset-0 z-[100] overflow-hidden bg-modal-bg"
     >
       {/*
-       * Hero video — always present, clipped to arch shape.
-       * You see the hallway through the arch before pressing Enter.
-       * On Enter the clip-path expands to fill the viewport.
-       * Initial scale 1.06 → animates to 1 during expansion (depth sense).
-       */}
-      <video
-        ref={videoRef}
-        src={heroVideoPath}
-        poster={heroVideoPoster}
-        muted
-        playsInline
-        preload="auto"
+        SVG overlay — solid dark fill with a soft-edged arch cutout.
+        The hero section renders underneath in the normal document flow
+        and is visible through the arch. No duplicate video.
+      */}
+      <svg
+        ref={svgRef}
+        className="absolute inset-0 h-full w-full"
+        viewBox="0 0 100 100"
+        preserveAspectRatio="none"
         aria-hidden
-        className="absolute inset-0 h-full w-full object-cover"
-        style={{
-          clipPath: ARCH,
-          transform: "scale(1.06)",
-          willChange: "clip-path, transform",
-        }}
-      />
+      >
+        <defs>
+          <filter id="intro-blur">
+            <feGaussianBlur stdDeviation="1.4" />
+          </filter>
+          <mask id="intro-mask">
+            <rect width="100" height="100" fill="white" />
+            <path
+              ref={pathRef}
+              d={archD(CLOSED)}
+              fill="black"
+              filter="url(#intro-blur)"
+            />
+          </mask>
+        </defs>
+        <rect
+          width="100"
+          height="100"
+          mask="url(#intro-mask)"
+          style={{ fill: "var(--color-modal-bg, #1a1614)" }}
+        />
+      </svg>
 
-      {/* Wordmark, tagline, Enter button — float above the arch */}
+      {/* Content — positioned at bottom of viewport, below the arch window */}
       <div
         ref={contentRef}
         className="relative z-10 flex h-full flex-col text-page"
       >
-        <div className="mx-auto flex flex-1 flex-col items-center justify-center gap-6 px-6 text-center">
+        {/* Top spacer pushes content down so it sits below the arch */}
+        <div className="flex-1" />
+
+        {/* Wordmark + tagline + button cluster */}
+        <div className="flex flex-col items-center gap-5 px-6 pb-6 text-center md:pb-10">
           <div className="flex items-baseline gap-3">
-            <span aria-hidden className="text-copper text-xl leading-none">◆</span>
+            <span aria-hidden className="text-copper text-xl leading-none">
+              ◆
+            </span>
             <span className="font-display text-4xl leading-none md:text-5xl">
               karst<span className="text-copper">.</span>
             </span>
-            <span className="ml-2 font-body text-lg leading-tight tracking-tight md:text-xl">
-              Build Your Home
-            </span>
           </div>
-          <p className="max-w-xs font-body text-base leading-tight text-page/70 md:text-lg">
+          <p className="max-w-xs font-body text-sm leading-tight text-page/60 md:text-base">
             {intro.tagline}
           </p>
           <button
@@ -125,7 +166,7 @@ export function IntroModal({ intro, heroVideoPath, heroVideoPoster }: Props) {
             onClick={handleEnter}
             disabled={exiting}
             className={cn(
-              "mt-4 rounded-full bg-copper px-8 py-3",
+              "rounded-full bg-copper px-8 py-3",
               "font-body text-sm font-medium text-modal-bg",
               "will-change-transform disabled:cursor-default",
             )}
@@ -134,9 +175,11 @@ export function IntroModal({ intro, heroVideoPath, heroVideoPoster }: Props) {
           </button>
         </div>
 
-        <footer className="px-6 pb-8 text-right font-body text-[10px] uppercase tracking-[0.06em] text-page/50 md:px-10 md:pb-10 md:text-[11px]">
+        <footer className="px-6 pb-6 text-center font-body text-[10px] uppercase tracking-[0.06em] text-page/60 md:px-10 md:pb-8 md:text-right md:text-[11px]">
           <p>Terms · Privacy · Press · Careers · Contact</p>
-          <p className="mt-1 normal-case tracking-normal">© 2026 Karst. All rights reserved.</p>
+          <p className="mt-1 normal-case tracking-normal">
+            © 2026 Karst. All rights reserved.
+          </p>
         </footer>
       </div>
     </div>

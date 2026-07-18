@@ -71,6 +71,7 @@ export type StubHomePage = {
     introChip: string;
     introHeadline: string;
     introBody: string;
+    introVideoPath?: string;
     aerialImagePath: string;
     rooms: StubTourRoom[];
   };
@@ -118,7 +119,7 @@ export const stubHomePage: StubHomePage = {
       name: "Listen",
       introBody:
         "We spend the first weeks not designing anything at all. We walk the site at different hours, meet everyone who'll live there, and note the small things — where the light lands at four in the afternoon, which door already gets left open.",
-      backgroundVideoPath: VIDEO(2),
+      backgroundVideoPath: SCRUB_VIDEO(2),
       backgroundVideoPoster: IMG("B1"),
       subScenes: [
         {
@@ -231,7 +232,7 @@ export const stubHomePage: StubHomePage = {
       name: "Refine",
       introBody:
         "Refinement is what protects the concept from erosion during construction. Every line on every drawing carries a decision behind it — and a reason we can defend.",
-      backgroundVideoPath: VIDEO(3),
+      backgroundVideoPath: SCRUB_VIDEO(3),
       backgroundVideoPoster: IMG("B2"),
       subScenes: [
         {
@@ -328,7 +329,7 @@ export const stubHomePage: StubHomePage = {
       name: "Live",
       introBody:
         "The last two weeks are the ones that separate a completed house from a home. Styling, objects, and the first quiet evening before the client moves in.",
-      backgroundVideoPath: VIDEO(4),
+      backgroundVideoPath: SCRUB_VIDEO(4),
       backgroundVideoPoster: IMG("B3"),
       subScenes: [
         {
@@ -365,6 +366,7 @@ export const stubHomePage: StubHomePage = {
     introHeadline: "STEP INSIDE A KARST HOME",
     introBody:
       "This is a home we completed for a family of four on the coast. Every room shown was styled, photographed, and lived in for six months before we returned to capture it.",
+    introVideoPath: VIDEO(4),
     aerialImagePath: IMG("B3"),
     rooms: [
       {
