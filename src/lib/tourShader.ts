@@ -90,7 +90,6 @@ const fragmentShader = /* glsl */ `
     vec2 scaled = texSize * coverScale;
     vec2 offset = (canvasSize - scaled) * 0.5;
     vec2 tuv = (uv * canvasSize - offset) / scaled;
-    // Apply subtle scale around centre for the "camera settles" feel.
     tuv = (tuv - 0.5) / scale + 0.5;
     return texture2D(tex, tuv);
   }
@@ -101,24 +100,13 @@ const fragmentShader = /* glsl */ `
     vec4 aerial = sampleCover(uAerial, uAerialSize, uResolution, uv, 1.0);
     vec4 room   = sampleCover(uRoom,   uRoomSize,   uResolution, uv, uRoomScale);
 
-    // Distance from origin, y-biased so the wisp stretches upward.
     vec2 delta = uv - uOrigin;
     float dist = length(delta * vec2(1.0, uYBias));
 
-    // Anisotropic FBM — vertical tongues (0.25 = long feathery strips).
     float noise = fbm(vec2(uv.x, uv.y * 0.25) * uNoiseScale + vec2(uSeed));
-    // Two-stage taper: base amp reduced from 0.85 → 0.45 so islands are
-    // roughly half-size mid-animation, then smoothstep drives amp fully to 0
-    // across progress [0, 0.55]. During close (progress 1→0), the second
-    // half of the animation runs with rapidly-shrinking noise, so
-    // "leftover pocket" islands don't have the amplitude to stay behind
-    // as their surroundings crossfade back to aerial.
     float amp = 0.45 * smoothstep(0.0, 0.55, uProgress);
     float perturbed = dist - noise * amp;
 
-    // Threshold slides from very low (only wisp near origin) to very
-    // high (whole viewport covered). uProgress = 0 → aerial visible;
-    // uProgress = 1 → room visible.
     float thresh = mix(-0.4, 2.0, uProgress);
     float roomOpacity = smoothstep(perturbed - uEdgeSoftness, perturbed + uEdgeSoftness, thresh);
 
@@ -135,7 +123,6 @@ export type TourUniforms = {
 
 export type TourRenderer = {
   uniforms: TourUniforms;
-  /** Set the room-side source (image or video). Aerial persists. */
   setRoomSource: (el: HTMLImageElement | HTMLVideoElement | null) => void;
   start: () => void;
   dispose: () => void;
@@ -164,8 +151,15 @@ export function createTourRenderer(
   });
   const gl = renderer.gl;
 
-  const aerialTex = new Texture(gl, { generateMipmaps: false });
-  const roomTex = new Texture(gl, { generateMipmaps: false });
+  // OGL 1.x doesn't reliably upload textures set via .image after the
+  // first render pass. Workaround: always create a new Texture with the
+  // image passed at construction time.
+  const placeholder = document.createElement("canvas");
+  placeholder.width = 1;
+  placeholder.height = 1;
+
+  let aerialTex = new Texture(gl, { generateMipmaps: false, image: placeholder as any });
+  let roomTex = new Texture(gl, { generateMipmaps: false, image: placeholder as any });
 
   const uniforms: TourUniforms & {
     uAerial: { value: Texture };
@@ -185,7 +179,7 @@ export function createTourRenderer(
     uAerialSize: { value: [1, 1] },
     uRoomSize: { value: [1, 1] },
     uOrigin: { value: [0.5, 0.65] },
-    uProgress: { value: 0 }, // start with aerial fully visible
+    uProgress: { value: 0 },
     uTime: { value: 0 },
     uNoiseScale: { value: 2.8 },
     uNoiseSpeed: { value: 0.1 },
@@ -203,22 +197,28 @@ export function createTourRenderer(
   const mesh = new Mesh(gl, { geometry: new Triangle(gl), program });
 
   const aerialImg = new Image();
-  aerialImg.crossOrigin = "anonymous";
+  if (aerialSrc.startsWith("http")) aerialImg.crossOrigin = "anonymous";
   aerialImg.onload = () => {
-    aerialTex.image = aerialImg;
-    uniforms.uAerialSize.value = [
-      aerialImg.naturalWidth,
-      aerialImg.naturalHeight,
-    ];
-    // Kick the room texture with the aerial image too so we don't sample
-    // an empty texture (which would show as black in the wisp) before
-    // the first room is loaded.
-    if (!roomTex.image) {
-      roomTex.image = aerialImg;
-      uniforms.uRoomSize.value = uniforms.uAerialSize.value.slice() as [
-        number,
-        number,
-      ];
+    const newAerial = new Texture(gl, {
+      generateMipmaps: false,
+      image: aerialImg,
+    });
+    aerialTex = newAerial;
+    uniforms.uAerial.value = newAerial;
+    uniforms.uAerialSize.value = [aerialImg.naturalWidth, aerialImg.naturalHeight];
+
+    const newRoom = new Texture(gl, {
+      generateMipmaps: false,
+      image: aerialImg,
+    });
+    roomTex = newRoom;
+    uniforms.uRoom.value = newRoom;
+    uniforms.uRoomSize.value = [aerialImg.naturalWidth, aerialImg.naturalHeight];
+  };
+  aerialImg.onerror = () => {
+    if (aerialImg.crossOrigin) {
+      aerialImg.crossOrigin = "";
+      aerialImg.src = aerialSrc;
     }
   };
   aerialImg.src = aerialSrc;
@@ -250,24 +250,28 @@ export function createTourRenderer(
     }
     if (el instanceof HTMLImageElement) {
       const apply = () => {
-        // ogl skips re-upload when the same element reference is reused
-        // (setter checks `this._image === value`). Clear first so the
-        // assignment always triggers a fresh texImage2D upload.
-        roomTex.image = null as any;
-        roomTex.image = el;
-        roomTex.needsUpdate = true;
+        const newTex = new Texture(gl, {
+          generateMipmaps: false,
+          image: el,
+        });
+        roomTex = newTex;
+        uniforms.uRoom.value = newTex;
         uniforms.uRoomSize.value = [el.naturalWidth, el.naturalHeight];
       };
       if (el.complete && el.naturalWidth) apply();
       else el.addEventListener("load", apply, { once: true });
     } else {
+      const newTex = new Texture(gl, {
+        generateMipmaps: false,
+        image: el,
+      });
+      roomTex = newTex;
+      uniforms.uRoom.value = newTex;
       const applyMeta = () => {
         uniforms.uRoomSize.value = [el.videoWidth, el.videoHeight];
       };
       if (el.readyState >= 1) applyMeta();
       else el.addEventListener("loadedmetadata", applyMeta, { once: true });
-      roomTex.image = null as any;
-      roomTex.image = el;
     }
   };
 
@@ -296,7 +300,6 @@ export function createTourRenderer(
     running = false;
     cancelAnimationFrame(rafId);
     ro.disconnect();
-    gl.getExtension("WEBGL_lose_context")?.loseContext();
   };
 
   return { uniforms, setRoomSource, start, dispose, resize };

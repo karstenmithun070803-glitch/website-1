@@ -40,6 +40,16 @@ function imgUrl(source: Image | undefined | null): string | undefined {
   }
 }
 
+function imgUrlForTexture(source: Image | undefined | null): string | undefined {
+  if (!source) return undefined;
+  try {
+    return urlFor(source).format("jpg").width(2048).quality(80).url();
+  } catch {
+    return undefined;
+  }
+}
+
+
 function fileUrl(field: { asset?: { url?: string } } | undefined | null): string | undefined {
   return field?.asset?.url ?? undefined;
 }
@@ -124,7 +134,7 @@ function translateTour(tour: any, fallback: StubHomePage["tour"]): StubHomePage[
     introHeadline: tour.introHeadline ?? fallback.introHeadline,
     introBody: tour.introBody ?? fallback.introBody,
     introVideoPath: fallback.introVideoPath,
-    aerialImagePath: imgUrl(tour.aerialImage) ?? fallback.aerialImagePath,
+    aerialImagePath: imgUrlForTexture(tour.aerialImage) ?? fallback.aerialImagePath,
     rooms: Array.isArray(tour.rooms) && tour.rooms.length > 0
       ? tour.rooms.map((r: any, i: number) => {
           const fb = fallback.rooms[i] ?? fallback.rooms[0];
